@@ -39,12 +39,25 @@ int main()
         return -2;
     }
 
-    char recvBuf[256] {};
-    int nRecv = recv(clientSock, recvBuf, 256, 0);
-    if(nRecv > 0)
+    char cmdBuf[128] {};
+    while(true)
     {
-        std::cout << "接收到数据: " << recvBuf << "\n";
+        std::cin >> cmdBuf;
+        if(!strncmp(cmdBuf, "exit", 128))
+        {
+            break;
+        }
+
+        send(clientSock, cmdBuf, strlen(cmdBuf) + 1, 0);
+        char recvBuf[128] {};
+        int nRecv = recv(clientSock, recvBuf, 128, 0);
+        if(nRecv > 0)
+        {
+            std::cout << cmdBuf << "->接收到数据: " << recvBuf << "\n";
+        }
     }
+
+    
     closesocket(clientSock);
     WSACleanup();
 

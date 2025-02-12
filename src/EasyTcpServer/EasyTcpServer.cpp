@@ -52,22 +52,50 @@ int main()
 
     sockaddr_in clientAddr{};
     int addrLen = sizeof(sockaddr_in);
-    char msgBuf[] { "Hello, I'm Server" };
+    SOCKET clientSock = accept(listenSock, (sockaddr*)&clientAddr, &addrLen);
+    if(INVALID_SOCKET == clientSock)
+    {
+        std::cout << "错误, Accept客户端失败...\n";
+        std::cout << "error: " << WSAGetLastError() << "\n";
+        return -3;
+    }
+    std::cout << "New Client: IP = " << inet_ntoa(clientAddr.sin_addr) << "\n";
 
+    char msgBuf[128] {};
     while(true)
     {
-        SOCKET clientSock = accept(listenSock, (sockaddr*)&clientAddr, &addrLen);
-        if(INVALID_SOCKET == clientSock)
+        int nRecv = recv(clientSock, msgBuf, 128, 0);
+        if(nRecv <= 0)
         {
-            std::cout << "错误, Accept客户端失败...\n";
-            std::cout << "error: " << WSAGetLastError() << "\n";
-            return -3;
+            std::cout << "客户端断开连接!\n";
+            break;
         }
-        std::cout << "New Client: IP = " << inet_ntoa(clientAddr.sin_addr) << "\n";
-        send(clientSock, msgBuf, strlen(msgBuf) + 1, 0);
+
+        std::cout << "recv: " << msgBuf << std::endl;
+        
+        if(!strncmp(msgBuf, "getName", 128))
+        {
+            const char* nameBuf = "Zhang zhihang";
+            send(clientSock, nameBuf, strlen(nameBuf) + 1, 0);
+        }
+        else if(!strncmp(msgBuf, "getAge", 128))
+        {
+            const char* ageBuf = "25";
+            send(clientSock, ageBuf, strlen(ageBuf) + 1, 0);
+        }
+        else
+        {
+            const char* unknownBuf = "unknown cmd!";
+            send(clientSock, unknownBuf, strlen(unknownBuf) + 1, 0);
+        }
     }
     
     closesocket(listenSock);
 
+    std::cout << "Server Exit\n";
     WSACleanup();
+
+    getchar();
+
+    return 0;
 }
