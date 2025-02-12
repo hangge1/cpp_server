@@ -11,7 +11,9 @@
 enum CMD
 {
     CMD_LOGIN,
+    CMD_LOGIN_RES,
     CMD_LOGOUT,
+    CMD_LOGOUT_RES, 
     CMD_ERROR
 };
 
@@ -23,25 +25,56 @@ struct DataHeader
 };
 
 //包体
-struct Login
-{
-    char userName[32];
-    char passWord[32];
+struct Login : DataHeader
+{   
+    Login()
+    {
+        dataLength = sizeof(Login);
+        cmd = CMD_LOGIN;
+    }
+    char userName[32] {0};
+    char passWord[32] {0};
 };
 
-struct LoginResult
+struct LoginResult : DataHeader
 {
+    LoginResult()
+    {
+        dataLength = sizeof(LoginResult);
+        cmd = CMD_LOGIN_RES;
+        result = 0;
+    }
     int result;
 };
 
-struct Logout
+struct Logout : DataHeader
 {
-    char userName[32];
+    Logout()
+    {
+        dataLength = sizeof(Logout);
+        cmd = CMD_LOGOUT;
+    }
+    char userName[32] {0};
 };
 
-struct LogoutResult
+struct LogoutResult : DataHeader
 {
+    LogoutResult()
+    {
+        dataLength = sizeof(LogoutResult);
+        cmd = CMD_LOGOUT_RES;
+        result = 0;
+    }
     int result;
+};
+
+struct ErrorResult : DataHeader
+{
+    ErrorResult()
+    {
+        dataLength = sizeof(ErrorResult);
+        cmd = CMD_ERROR;
+    }
 };
 
 int main()
@@ -114,30 +147,28 @@ int main()
         {
         case CMD_LOGIN:
             {
-                Login login {};
-                recv(clientSock, (char*)&login, sizeof(login), 0);
-                printf("recv user login, username: %s, password: %s\n", login.userName, login.passWord);
+                Login login;
+                recv(clientSock, (char*)&login + sizeof(header), sizeof(login) - sizeof(header), 0);
+                printf("收到Login命令,长度=%d, username: %s, password: %s\n", login.dataLength, login.userName, login.passWord);
                 //暂时忽略验证过程
-                LoginResult loginRes { 0 };
-                send(clientSock, (char*)&header, sizeof(header), 0);
+                LoginResult loginRes;
                 send(clientSock, (char*)&loginRes, sizeof(loginRes), 0);
             }
             break;
         case CMD_LOGOUT:
             {
-                Logout logout {};
-                recv(clientSock, (char*)&logout, sizeof(logout), 0);
-                printf("recv user logout, username: %s\n", logout.userName);
+                Logout logout;
+                recv(clientSock, (char*)&logout + sizeof(header), sizeof(logout) - sizeof(header), 0);
+                printf("收到Logout命令,长度=%d, username: %s\n", logout.dataLength, logout.userName);
                 //暂时忽略验证过程
-                LogoutResult logoutRes { 0 };
-                send(clientSock, (char*)&header, sizeof(header), 0);
+                LogoutResult logoutRes;
                 send(clientSock, (char*)&logoutRes, sizeof(logoutRes), 0);
             }
             break;
         default:
             printf("receive unknown cmd!\n");
-            DataHeader resHeader { 0, CMD_ERROR };
-            send(clientSock, (char*)&resHeader, sizeof(resHeader), 0);
+            ErrorResult errorRes;
+            send(clientSock, (char*)&errorRes, sizeof(errorRes), 0);
             break;
         }
     }

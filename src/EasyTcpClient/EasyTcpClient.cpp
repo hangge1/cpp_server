@@ -11,7 +11,9 @@
 enum CMD
 {
     CMD_LOGIN,
+    CMD_LOGIN_RES,
     CMD_LOGOUT,
+    CMD_LOGOUT_RES, 
     CMD_ERROR
 };
 
@@ -23,25 +25,56 @@ struct DataHeader
 };
 
 //包体
-struct Login
-{
-    char userName[32];
-    char passWord[32];
+struct Login : DataHeader
+{   
+    Login()
+    {
+        dataLength = sizeof(Login);
+        cmd = CMD_LOGIN;
+    }
+    char userName[32] {0};
+    char passWord[32] {0};
 };
 
-struct LoginResult
+struct LoginResult : DataHeader
 {
+    LoginResult()
+    {
+        dataLength = sizeof(LoginResult);
+        cmd = CMD_LOGIN_RES;
+        result = 0;
+    }
     int result;
 };
 
-struct Logout
+struct Logout : DataHeader
 {
-    char userName[32];
+    Logout()
+    {
+        dataLength = sizeof(Logout);
+        cmd = CMD_LOGOUT;
+    }
+    char userName[32] {};
 };
 
-struct LogoutResult
+struct LogoutResult : DataHeader
 {
+    LogoutResult()
+    {
+        dataLength = sizeof(LogoutResult);
+        cmd = CMD_LOGOUT_RES;
+        result = 0;
+    }
     int result;
+};
+
+struct ErrorResult : DataHeader
+{
+    ErrorResult()
+    {
+        dataLength = sizeof(ErrorResult);
+        cmd = CMD_ERROR;
+    }
 };
 
 int main()
@@ -87,33 +120,26 @@ int main()
         if(!strncmp(cmdBuf, "login", 128))
         {
             //发
-            Login login { "zzh", "123456" };
-            DataHeader header { sizeof(Login), CMD_LOGIN };
-            send(clientSock, (char*)&header, sizeof(header), 0);
+            Login login;
+            strncpy_s(login.userName, "zzh", 32);
+            strncpy_s(login.passWord, "123456", 32);
             send(clientSock, (char*)&login, sizeof(login), 0);
 
             //收
-            DataHeader responseHeader {};
-            LoginResult loginResponse {};
-            recv(clientSock, (char*)&responseHeader, sizeof(responseHeader), 0);
+            LoginResult loginResponse;
             recv(clientSock, (char*)&loginResponse, sizeof(loginResponse), 0);
-
             printf("LoginResult: %d\n", loginResponse.result);
         }
         else if(!strncmp(cmdBuf, "logout", 128))
         {
             //发
-            Logout logout { "zzh" };
-            DataHeader header { sizeof(Logout), CMD_LOGOUT };
-            send(clientSock, (char*)&header, sizeof(header), 0);
+            Logout logout;
+            strncpy_s(logout.userName, "zzh", 32);
             send(clientSock, (char*)&logout, sizeof(logout), 0);
 
             //收
-            DataHeader responseHeader {};
-            LogoutResult logoutResponse {};
-            recv(clientSock, (char*)&responseHeader, sizeof(responseHeader), 0);
+            LogoutResult logoutResponse;
             recv(clientSock, (char*)&logoutResponse, sizeof(logoutResponse), 0);
-
             printf("LogoutResult: %d\n", logoutResponse.result);
         }
         else
