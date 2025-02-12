@@ -15,6 +15,7 @@ enum CMD
     CMD_LOGIN_RES,
     CMD_LOGOUT,
     CMD_LOGOUT_RES, 
+    CMD_NEW_USER_JOIN, 
     CMD_ERROR
 };
 
@@ -69,6 +70,17 @@ struct LogoutResult : DataHeader
     int result;
 };
 
+struct NewUserJoin : DataHeader
+{
+    NewUserJoin()
+    {
+        dataLength = sizeof(NewUserJoin);
+        cmd = CMD_NEW_USER_JOIN;
+        newUserSocket = 0;
+    }
+    int newUserSocket;
+};
+
 struct ErrorResult : DataHeader
 {
     ErrorResult()
@@ -80,23 +92,26 @@ struct ErrorResult : DataHeader
 
 int Processor(SOCKET clientSock)
 {
-    DataHeader header {};
-    int nRecv = recv(clientSock, (char*)&header, sizeof(DataHeader), 0);
+    char buf[256]{0};
+
+    int nRecv = recv(clientSock, (char*)buf, sizeof(DataHeader), 0);  
     if(nRecv <= 0)
     {
-        std::cout << "客户端断开连接!\n";
+        printf("客户端[%d]断开连接!\n", (int)clientSock);
         return -1;
     }
+    printf("recv ret = %d\n", nRecv);
 
-    printf("收到命令: %d 数据长度: %d\n", header.cmd, header.dataLength);
+    DataHeader* header = (DataHeader*)buf;
+    printf("客户端[%d] 发送命令: %d 数据长度: %d\n",(int)clientSock, header->cmd, header->dataLength);
         
-    switch( header.cmd )
+    switch( header->cmd )
     {
     case CMD_LOGIN:
         {
-            Login login;
-            recv(clientSock, (char*)&login + sizeof(header), sizeof(login) - sizeof(header), 0);
-            printf("收到Login命令,长度=%d, username: %s, password: %s\n", login.dataLength, login.userName, login.passWord);
+            Login* login = (Login*)header;
+            recv(clientSock, (char*)login + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
+            printf("收到Login命令,长度=%hd, username: %s, password: %s\n", login->dataLength, login->userName, login->passWord);
             //暂时忽略验证过程
             LoginResult loginRes;
             send(clientSock, (char*)&loginRes, sizeof(loginRes), 0);
@@ -104,9 +119,9 @@ int Processor(SOCKET clientSock)
         break;
     case CMD_LOGOUT:
         {
-            Logout logout;
-            recv(clientSock, (char*)&logout + sizeof(header), sizeof(logout) - sizeof(header), 0);
-            printf("收到Logout命令,长度=%d, username: %s\n", logout.dataLength, logout.userName);
+            Logout* logout = (Logout*)header;
+            recv(clientSock, (char*)logout + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
+            printf("收到Logout命令,长度=%d, username: %s\n", logout->dataLength, logout->userName);
             //暂时忽略验证过程
             LogoutResult logoutRes;
             send(clientSock, (char*)&logoutRes, sizeof(logoutRes), 0);
@@ -184,7 +199,7 @@ int main()
             FD_SET(clients[n], &fdRead);
         }
 
-        const timeval tv { 0 };
+        const timeval tv { 2, 0 };
         int ret = select((int)listenSock + 1, &fdRead, &fdWrite, &fdError, &tv);
         if(ret < 0)
         {
@@ -202,12 +217,19 @@ int main()
             SOCKET clientSock = accept(listenSock, (sockaddr*)&clientAddr, &addrLen);
             if(INVALID_SOCKET == clientSock)
             {
-                std::cout << "错误, Accept客户端失败...\n";
-                std::cout << "error: " << WSAGetLastError() << "\n";
+                printf("错误, Accept客户端失败...\n");
                 return -3;
             }
-            std::cout << "New Client: IP = " << inet_ntoa(clientAddr.sin_addr) << "\n";
+            
+            //群发消息通知玩家登录
+            for(int n = (int)clients.size()-1; n >=0; n--)
+            {
+                NewUserJoin msg;
+                msg.newUserSocket = (int)clientSock;
+                send(clients[n], (char*)&msg, sizeof(msg), 0);
+            }
 
+            printf("新客户端登录Socket=%d Ip=%s\n", (int)clientSock, inet_ntoa(clientAddr.sin_addr));
             clients.emplace_back(clientSock);
         }
 
@@ -223,6 +245,8 @@ int main()
                 }
             }
         }
+
+        printf("空间时间处理其他业务...\n");
     }
     
     //关闭所有套接字
