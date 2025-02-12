@@ -4,6 +4,7 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
 #include <iostream>
+#include <vector>
 
 #include <WinSock2.h>
 #include <WS2tcpip.h>
@@ -77,6 +78,50 @@ struct ErrorResult : DataHeader
     }
 };
 
+int Processor(SOCKET clientSock)
+{
+    DataHeader header {};
+    int nRecv = recv(clientSock, (char*)&header, sizeof(DataHeader), 0);
+    if(nRecv <= 0)
+    {
+        std::cout << "客户端断开连接!\n";
+        return -1;
+    }
+
+    printf("收到命令: %d 数据长度: %d\n", header.cmd, header.dataLength);
+        
+    switch( header.cmd )
+    {
+    case CMD_LOGIN:
+        {
+            Login login;
+            recv(clientSock, (char*)&login + sizeof(header), sizeof(login) - sizeof(header), 0);
+            printf("收到Login命令,长度=%d, username: %s, password: %s\n", login.dataLength, login.userName, login.passWord);
+            //暂时忽略验证过程
+            LoginResult loginRes;
+            send(clientSock, (char*)&loginRes, sizeof(loginRes), 0);
+        }
+        break;
+    case CMD_LOGOUT:
+        {
+            Logout logout;
+            recv(clientSock, (char*)&logout + sizeof(header), sizeof(logout) - sizeof(header), 0);
+            printf("收到Logout命令,长度=%d, username: %s\n", logout.dataLength, logout.userName);
+            //暂时忽略验证过程
+            LogoutResult logoutRes;
+            send(clientSock, (char*)&logoutRes, sizeof(logoutRes), 0);
+        }
+        break;
+    default:
+        printf("receive unknown cmd!\n");
+        ErrorResult errorRes;
+        send(clientSock, (char*)&errorRes, sizeof(errorRes), 0);
+        break;
+    }
+
+    return 0;
+}
+
 int main()
 {
     WORD version = MAKEWORD(2, 2);
@@ -119,60 +164,72 @@ int main()
         return -2;
     }
 
-    sockaddr_in clientAddr{};
-    int addrLen = sizeof(sockaddr_in);
-    SOCKET clientSock = accept(listenSock, (sockaddr*)&clientAddr, &addrLen);
-    if(INVALID_SOCKET == clientSock)
-    {
-        std::cout << "错误, Accept客户端失败...\n";
-        std::cout << "error: " << WSAGetLastError() << "\n";
-        return -3;
-    }
-    std::cout << "New Client: IP = " << inet_ntoa(clientAddr.sin_addr) << "\n";
+    std::vector<SOCKET> clients;
 
+    fd_set fdRead;
+    fd_set fdWrite;
+    fd_set fdError;
     while(true)
     {
-        DataHeader header {};
+        FD_ZERO(&fdRead);
+        FD_ZERO(&fdWrite);
+        FD_ZERO(&fdError);
 
-        int nRecv = recv(clientSock, (char*)&header, sizeof(DataHeader), 0);
-        if(nRecv <= 0)
+        FD_SET(listenSock, &fdRead);
+        FD_SET(listenSock, &fdWrite);
+        FD_SET(listenSock, &fdError);
+
+        for(int n = (int)clients.size() - 1; n >= 0; n--)
         {
-            std::cout << "客户端断开连接!\n";
+            FD_SET(clients[n], &fdRead);
+        }
+
+        const timeval tv { 0 };
+        int ret = select((int)listenSock + 1, &fdRead, &fdWrite, &fdError, &tv);
+        if(ret < 0)
+        {
+            printf("select任务结束!\n");
             break;
         }
 
-        printf("收到命令: %d 数据长度: %d\n", header.cmd, header.dataLength);
-        
-        switch( header.cmd )
+        //检测客户端连接
+        if(FD_ISSET(listenSock, &fdRead))
         {
-        case CMD_LOGIN:
+            FD_CLR(listenSock, &fdRead);
+
+            sockaddr_in clientAddr{};
+            int addrLen = sizeof(sockaddr_in);
+            SOCKET clientSock = accept(listenSock, (sockaddr*)&clientAddr, &addrLen);
+            if(INVALID_SOCKET == clientSock)
             {
-                Login login;
-                recv(clientSock, (char*)&login + sizeof(header), sizeof(login) - sizeof(header), 0);
-                printf("收到Login命令,长度=%d, username: %s, password: %s\n", login.dataLength, login.userName, login.passWord);
-                //暂时忽略验证过程
-                LoginResult loginRes;
-                send(clientSock, (char*)&loginRes, sizeof(loginRes), 0);
+                std::cout << "错误, Accept客户端失败...\n";
+                std::cout << "error: " << WSAGetLastError() << "\n";
+                return -3;
             }
-            break;
-        case CMD_LOGOUT:
+            std::cout << "New Client: IP = " << inet_ntoa(clientAddr.sin_addr) << "\n";
+
+            clients.emplace_back(clientSock);
+        }
+
+        //处理客户端业务逻辑
+        for(size_t n = 0; n < fdRead.fd_count; n++)
+        {
+            if(-1 == Processor(fdRead.fd_array[n]))
             {
-                Logout logout;
-                recv(clientSock, (char*)&logout + sizeof(header), sizeof(logout) - sizeof(header), 0);
-                printf("收到Logout命令,长度=%d, username: %s\n", logout.dataLength, logout.userName);
-                //暂时忽略验证过程
-                LogoutResult logoutRes;
-                send(clientSock, (char*)&logoutRes, sizeof(logoutRes), 0);
+                auto it = std::find(clients.begin(), clients.end(), fdRead.fd_array[n]);
+                if(it != clients.end())
+                {
+                    clients.erase(it);
+                }
             }
-            break;
-        default:
-            printf("receive unknown cmd!\n");
-            ErrorResult errorRes;
-            send(clientSock, (char*)&errorRes, sizeof(errorRes), 0);
-            break;
         }
     }
     
+    //关闭所有套接字
+    for(int n = (int)clients.size() - 1; n >= 0; n--)
+    {
+        closesocket(clients[n]);
+    }
     closesocket(listenSock);
 
     std::cout << "Server Exit\n";
