@@ -218,19 +218,20 @@ int main()
             if(INVALID_SOCKET == clientSock)
             {
                 printf("错误, Accept客户端失败...\n");
-                return -3;
             }
-            
-            //群发消息通知玩家登录
-            for(int n = (int)clients.size()-1; n >=0; n--)
+            else
             {
-                NewUserJoin msg;
-                msg.newUserSocket = (int)clientSock;
-                send(clients[n], (char*)&msg, sizeof(msg), 0);
-            }
+                //群发消息通知玩家登录
+                for(int n = (int)clients.size()-1; n >=0; n--)
+                {
+                    NewUserJoin msg;
+                    msg.newUserSocket = (int)clientSock;
+                    send(clients[n], (char*)&msg, sizeof(msg), 0);
+                }
 
-            printf("新客户端登录Socket=%d Ip=%s\n", (int)clientSock, inet_ntoa(clientAddr.sin_addr));
-            clients.emplace_back(clientSock);
+                printf("新客户端登录Socket=%d Ip=%s\n", (int)clientSock, inet_ntoa(clientAddr.sin_addr));
+                clients.emplace_back(clientSock);
+            }     
         }
 
         //处理客户端业务逻辑
