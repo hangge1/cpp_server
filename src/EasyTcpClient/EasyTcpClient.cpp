@@ -8,6 +8,12 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 
+struct DataPackage
+{
+    int age;
+    char name[32];
+};
+
 int main()
 {
     WORD version = MAKEWORD(2, 2);
@@ -53,7 +59,9 @@ int main()
         int nRecv = recv(clientSock, recvBuf, 128, 0);
         if(nRecv > 0)
         {
-            std::cout << cmdBuf << "->接收到数据: " << recvBuf << "\n";
+            DataPackage* pack = (DataPackage*)recvBuf;
+            std::cout << cmdBuf << "->接收到数据: ";
+            std::cout << "age: " << pack->age << "; name = " << pack->name << std::endl;
         }
     }
 
