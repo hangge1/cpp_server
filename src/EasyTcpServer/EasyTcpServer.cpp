@@ -8,10 +8,40 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 
-struct DataPackage
+enum CMD
 {
-    int age;
-    char name[32];
+    CMD_LOGIN,
+    CMD_LOGOUT,
+    CMD_ERROR
+};
+
+//包头
+struct DataHeader
+{
+    short dataLength;
+    short cmd;
+};
+
+//包体
+struct Login
+{
+    char userName[32];
+    char passWord[32];
+};
+
+struct LoginResult
+{
+    int result;
+};
+
+struct Logout
+{
+    char userName[32];
+};
+
+struct LogoutResult
+{
+    int result;
 };
 
 int main()
@@ -67,27 +97,48 @@ int main()
     }
     std::cout << "New Client: IP = " << inet_ntoa(clientAddr.sin_addr) << "\n";
 
-    char msgBuf[128] {};
     while(true)
     {
-        int nRecv = recv(clientSock, msgBuf, 128, 0);
+        DataHeader header {};
+
+        int nRecv = recv(clientSock, (char*)&header, sizeof(DataHeader), 0);
         if(nRecv <= 0)
         {
             std::cout << "客户端断开连接!\n";
             break;
         }
 
-        std::cout << "recv: " << msgBuf << std::endl;
+        printf("收到命令: %d 数据长度: %d\n", header.cmd, header.dataLength);
         
-        if(!strncmp(msgBuf, "getInfo", 128))
+        switch( header.cmd )
         {
-            DataPackage pack { 25, "Zhang zhihang" };
-            send(clientSock, (char*)&pack, sizeof(pack), 0);
-        }
-        else
-        {
-            const char* unknownBuf = "unknown cmd!";
-            send(clientSock, unknownBuf, strlen(unknownBuf) + 1, 0);
+        case CMD_LOGIN:
+            {
+                Login login {};
+                recv(clientSock, (char*)&login, sizeof(login), 0);
+                printf("recv user login, username: %s, password: %s\n", login.userName, login.passWord);
+                //暂时忽略验证过程
+                LoginResult loginRes { 0 };
+                send(clientSock, (char*)&header, sizeof(header), 0);
+                send(clientSock, (char*)&loginRes, sizeof(loginRes), 0);
+            }
+            break;
+        case CMD_LOGOUT:
+            {
+                Logout logout {};
+                recv(clientSock, (char*)&logout, sizeof(logout), 0);
+                printf("recv user logout, username: %s\n", logout.userName);
+                //暂时忽略验证过程
+                LogoutResult logoutRes { 0 };
+                send(clientSock, (char*)&header, sizeof(header), 0);
+                send(clientSock, (char*)&logoutRes, sizeof(logoutRes), 0);
+            }
+            break;
+        default:
+            printf("receive unknown cmd!\n");
+            DataHeader resHeader { 0, CMD_ERROR };
+            send(clientSock, (char*)&resHeader, sizeof(resHeader), 0);
+            break;
         }
     }
     
