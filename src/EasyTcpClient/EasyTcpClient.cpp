@@ -4,9 +4,12 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
 #include <iostream>
+#include <thread>
 
 #include <WinSock2.h>
 #include <WS2tcpip.h>
+
+#pragma comment(lib, "ws2_32.lib")
 
 enum CMD
 {
@@ -129,6 +132,44 @@ int Processor(SOCKET clientSock)
     return 0;
 }
 
+
+bool g_bRun = true;
+void CmdFunc(SOCKET clientSock)
+{
+    char cmdBuf[128] {0};
+
+    while(true)
+    {
+        std::cin >> cmdBuf;
+        if(!strncmp(cmdBuf, "exit", 128))
+        {
+            printf("退出cmd线程!\n");
+            g_bRun = false;
+            break;
+        }
+
+        if(!strncmp(cmdBuf, "login", 128))
+        {
+            //发
+            Login login;
+            strncpy_s(login.userName, "zzh", 32);
+            strncpy_s(login.passWord, "123456", 32);
+            send(clientSock, (char*)&login, sizeof(login), 0);
+        }
+        else if(!strncmp(cmdBuf, "logout", 128))
+        {
+            //发
+            Logout logout;
+            strncpy_s(logout.userName, "zzh", 32);
+            send(clientSock, (char*)&logout, sizeof(logout), 0);
+        }
+        else
+        {
+            printf("命令不支持!\n");
+        }
+    }   
+}
+
 int main()
 {
     WORD version = MAKEWORD(2, 2);
@@ -160,8 +201,10 @@ int main()
         return -2;
     }
 
-    char cmdBuf[128] {0};
-    while(true)
+    std::thread cmdThread(CmdFunc, clientSock);
+    cmdThread.detach();
+    
+    while(g_bRun)
     {
         fd_set fdReads;
         FD_ZERO(&fdReads);
@@ -188,49 +231,7 @@ int main()
 
 
         //test
-        Login login;
-        strncpy_s(login.userName, "zzh", 32);
-        strncpy_s(login.passWord, "123456", 32);
-        int nSend = send(clientSock, (char*)&login, sizeof(Login), 0);
-        printf("send ret = %d\n", nSend);
-        printf("空间时间处理其他业务...\n");
-        Sleep(2000);
-
-        //std::cin >> cmdBuf;
-        //if(!strncmp(cmdBuf, "exit", 128))
-        //{
-        //    break;
-        //}
-
-        //if(!strncmp(cmdBuf, "login", 128))
-        //{
-        //    //发
-        //    Login login;
-        //    strncpy_s(login.userName, "zzh", 32);
-        //    strncpy_s(login.passWord, "123456", 32);
-        //    send(clientSock, (char*)&login, sizeof(login), 0);
-
-        //    //收
-        //    LoginResult loginResponse;
-        //    recv(clientSock, (char*)&loginResponse, sizeof(loginResponse), 0);
-        //    printf("LoginResult: %d\n", loginResponse.result);
-        //}
-        //else if(!strncmp(cmdBuf, "logout", 128))
-        //{
-        //    //发
-        //    Logout logout;
-        //    strncpy_s(logout.userName, "zzh", 32);
-        //    send(clientSock, (char*)&logout, sizeof(logout), 0);
-
-        //    //收
-        //    LogoutResult logoutResponse;
-        //    recv(clientSock, (char*)&logoutResponse, sizeof(logoutResponse), 0);
-        //    printf("LogoutResult: %d\n", logoutResponse.result);
-        //}
-        //else
-        //{
-        //    printf("命令不支持!\n");
-        //}
+        //printf("空间时间处理其他业务...\n");    
     }
     
     closesocket(clientSock);
