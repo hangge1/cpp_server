@@ -7,6 +7,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <thread>
 #include "EasyTcpServer.hpp"
 
 #ifdef _WIN32
@@ -25,6 +26,30 @@
     #define SOCKET_ERROR            (-1)
 #endif
 
+bool g_bRun = true;
+void CmdFunc(EasyTcpServer* server)
+{
+    if(!server) return;
+
+    char cmdBuf[128] {0};
+    while(server->isRun())
+    {
+        scanf("%s", cmdBuf);
+
+        if(!strncmp(cmdBuf, "exit", 128))
+        {
+            printf("退出cmd线程!\n");
+            server->Close();
+            break;
+        }
+        else
+        {
+            printf("命令不支持!\n");
+        }
+    }  
+    
+    
+}
 
 int main()
 {
@@ -32,6 +57,9 @@ int main()
     server.Bind(nullptr, 9090);
     server.Listen(5);
     
+    std::thread cmdThread(CmdFunc, &server);
+    cmdThread.detach();
+
     while(server.isRun())
     {
         server.OnRun();

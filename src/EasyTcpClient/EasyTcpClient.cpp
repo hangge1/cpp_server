@@ -67,15 +67,14 @@ void CmdFunc(EasyTcpClient* client)
 int main()
 {
     EasyTcpClient client;
-    //if(-1 == client.Connect("192.168.26.129", 9090))
     if(-1 == client.Connect("127.0.0.1", 9090))
     {
         return -1;
     }
 
     //类似UI线程
-    //std::thread cmdThread(CmdFunc, &client);
-    //cmdThread.detach();
+    std::thread cmdThread(CmdFunc, &client);
+    cmdThread.detach();
     
     Login login;
     strncpy(login.userName, "zzh", 32);

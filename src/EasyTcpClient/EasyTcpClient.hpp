@@ -114,6 +114,7 @@ public:
             if(-1 == ReceiveData(_sock))
             {
                 printf("<sock=%d> ReceiveData结束\n",(int)_sock);
+                Close();
                 return false;
             } 
         }
@@ -150,7 +151,7 @@ public:
         {
             DataHeader* header = (DataHeader*)_msgBuf;
             int packageSize = header->dataLength;
-            if(_lastPos > packageSize) //够一个包长度
+            if(_lastPos >= packageSize) //够一个包长度
             {
                 OnNetMsg(header); //处理包
                 memmove(_msgBuf, _msgBuf + packageSize, _lastPos - packageSize); //前移
