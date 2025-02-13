@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _EasyTcpClient_H_
+#define _EasyTcpClient_H_
 
 #include <iostream>
 #include "MessageHeader.hpp"
@@ -65,7 +66,8 @@ public:
 
         if(SOCKET_ERROR == connect(_sock, (sockaddr*)&servAddr, sizeof(servAddr)))
         {
-            printf("Connect失败...\n");
+            printf("<sock=%d> Connect: %s:%d 失败...\n", (int)_sock, ip, port);
+            Close();
             return -1;
         }
         return 0;
@@ -79,7 +81,7 @@ public:
         closesocket(_sock);
         WSACleanup();
 #else
-        close(clientSock);
+        close(_sock);
 #endif
         _sock = INVALID_SOCKET;
     }
@@ -127,7 +129,7 @@ public:
         int nRecv = recv(clientSock, (char*)buf, sizeof(DataHeader), 0);
         if(nRecv <= 0)
         {
-            printf("与服务器断开连接!\n");
+            printf("<sock=%d> 与服务器断开连接!\n");
             return -1;
         }
         
@@ -146,21 +148,21 @@ public:
             {
                 LoginResult* login_res = (LoginResult*)header;
                 recv(_sock, (char*)login_res + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
-                printf("收到服务器消息: CMD_LOGIN_RES, 数据长度: %d\n", login_res->dataLength);
+                printf("<sock=%d> 收到服务器消息: CMD_LOGIN_RES, 数据长度: %d\n", login_res->dataLength);
             }
             break;
         case CMD_LOGOUT_RES:
             {
                 LogoutResult* logout_res = (LogoutResult*)header;
                 recv(_sock, (char*)logout_res + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
-                printf("收到服务器消息: CMD_LOGOUT_RES, 数据长度: %d\n", logout_res->dataLength);
+                printf("<sock=%d> 收到服务器消息: CMD_LOGOUT_RES, 数据长度: %d\n", logout_res->dataLength);
             }
             break;
         case CMD_NEW_USER_JOIN:
             {
                 NewUserJoin* newJoin = (NewUserJoin*)header;
                 recv(_sock, (char*)newJoin + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
-                printf("收到服务器消息: CMD_NEW_USER_JOIN, 数据长度: %d\n", newJoin->dataLength);
+                printf("<sock=%d> 收到服务器消息: CMD_NEW_USER_JOIN, 数据长度: %d\n", newJoin->dataLength);
             }
             break;
         }
@@ -177,3 +179,5 @@ public:
 private:
     SOCKET _sock = INVALID_SOCKET;
 };
+
+#endif

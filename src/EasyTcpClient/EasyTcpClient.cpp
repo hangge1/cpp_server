@@ -24,48 +24,6 @@
 #include "EasyTcpClient.hpp"
 
 
-
-int Processor(SOCKET clientSock)
-{
-    char buf[256]{0};
-
-    int nRecv = recv(clientSock, (char*)buf, sizeof(DataHeader), 0);
-    DataHeader* header = (DataHeader*)buf;
-    if(nRecv <= 0)
-    {
-        printf("与服务器断开连接!\n");
-        fflush(stdout);
-        return -1;
-    }
-   
-    switch( header->cmd )
-    {
-    case CMD_LOGIN_RES:
-        {
-            LoginResult* login_res = (LoginResult*)header;
-            recv(clientSock, (char*)login_res + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
-            printf("收到服务器消息: CMD_LOGIN_RES, 数据长度: %d\n", login_res->dataLength);
-        }
-        break;
-    case CMD_LOGOUT_RES:
-        {
-            LogoutResult* logout_res = (LogoutResult*)header;
-            recv(clientSock, (char*)logout_res + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
-            printf("收到服务器消息: CMD_LOGOUT_RES, 数据长度: %d\n", logout_res->dataLength);
-        }
-        break;
-    case CMD_NEW_USER_JOIN:
-        {
-            NewUserJoin* newJoin = (NewUserJoin*)header;
-            recv(clientSock, (char*)newJoin + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
-            printf("收到服务器消息: CMD_NEW_USER_JOIN, 数据长度: %d\n", newJoin->dataLength);
-        }
-        break;
-    }
-    return 0;
-}
-
-
 bool g_bRun = true;
 void CmdFunc(EasyTcpClient* client)
 {

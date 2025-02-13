@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _MessageHeader_H_
+#define _MessageHeader_H_
 
 enum CMD
 {
@@ -80,3 +81,5 @@ struct ErrorResult : DataHeader
         cmd = CMD_ERROR;
     }
 };
+
+#endif
