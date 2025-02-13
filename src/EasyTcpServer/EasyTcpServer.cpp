@@ -2,13 +2,28 @@
 //
 
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
 
 #include <iostream>
 #include <vector>
+#include <algorithm>
 
-#include <WinSock2.h>
-#include <WS2tcpip.h>
-#pragma comment(lib, "ws2_32.lib")
+#ifdef _WIN32
+    #define WIN32_LEAN_AND_MEAN
+    #include <windows.h>
+    #include <WinSock2.h>
+    #include <WS2tcpip.h>
+    #pragma comment(lib, "ws2_32.lib")
+#else
+    #include <unistd.h>
+    #include <arpa/inet.h>
+    #include <cstring>
+
+    #define SOCKET int
+    #define INVALID_SOCKET  (SOCKET)(~0)
+    #define SOCKET_ERROR            (-1)
+#endif
+
 
 enum CMD
 {
@@ -95,7 +110,7 @@ int Processor(SOCKET clientSock)
 {
     char buf[256]{0};
 
-    int nRecv = recv(clientSock, (char*)buf, sizeof(DataHeader), 0);  
+    int nRecv = (int)recv(clientSock, (char*)buf, sizeof(DataHeader), 0);  
     if(nRecv <= 0)
     {
         printf("客户端[%d]断开连接!\n", (int)clientSock);
@@ -140,9 +155,11 @@ int Processor(SOCKET clientSock)
 
 int main()
 {
+#ifdef _WIN32
     WORD version = MAKEWORD(2, 2);
     WSADATA data;
     WSAStartup(version, &data);
+#endif
 
     //--简易TCP服务器, 步骤如下: 
     // 1 创建socket
@@ -157,26 +174,23 @@ int main()
     if(INVALID_SOCKET == listenSock)
     {
         std::cout << "错误, SOCKET创建失败...\n";
-        std::cout << "error: " << WSAGetLastError() << "\n";
         return -1;
     }
 
     sockaddr_in servAddr{};
     servAddr.sin_family = AF_INET;
     servAddr.sin_port = htons(9090);
-    servAddr.sin_addr.S_un.S_addr = INADDR_ANY;//inet_addr("127.0.0.1");
+    servAddr.sin_addr.s_addr = INADDR_ANY;//inet_addr("127.0.0.1");
 
     if(SOCKET_ERROR == bind(listenSock, (sockaddr*)&servAddr, sizeof(servAddr)))
     {
         std::cout << "错误, 绑定网络端口失败...\n";
-        std::cout << "error: " << WSAGetLastError() << "\n";
         return -1;
     }
 
     if(SOCKET_ERROR == listen(listenSock, 5))
     {
         std::cout << "错误, 监听网络端口失败...\n";
-        std::cout << "error: " << WSAGetLastError() << "\n";
         return -2;
     }
 
@@ -194,14 +208,16 @@ int main()
         FD_SET(listenSock, &fdRead);
         FD_SET(listenSock, &fdWrite);
         FD_SET(listenSock, &fdError);
+        SOCKET maxSock = listenSock;
 
         for(int n = (int)clients.size() - 1; n >= 0; n--)
         {
             FD_SET(clients[n], &fdRead);
+            maxSock = std::max<int>((int)maxSock, (int)clients[n]);
         }
 
-        const timeval tv { 2, 0 };
-        int ret = select((int)listenSock + 1, &fdRead, &fdWrite, &fdError, &tv);
+        timeval tv { 2, 0 };
+        int ret = select((int)maxSock + 1, &fdRead, &fdWrite, &fdError, &tv);
         if(ret < 0)
         {
             printf("select任务结束!\n");
@@ -215,7 +231,12 @@ int main()
 
             sockaddr_in clientAddr{};
             int addrLen = sizeof(sockaddr_in);
+
+#ifdef _WIN32
             SOCKET clientSock = accept(listenSock, (sockaddr*)&clientAddr, &addrLen);
+#else
+            SOCKET clientSock = accept(listenSock, (sockaddr*)&clientAddr, (socklen_t*)&addrLen);
+#endif
             if(INVALID_SOCKET == clientSock)
             {
                 printf("错误, Accept客户端失败...\n");
@@ -235,31 +256,40 @@ int main()
             }     
         }
 
-        //处理客户端业务逻辑
-        for(size_t n = 0; n < fdRead.fd_count; n++)
+        auto it = clients.begin();
+        while(it != clients.end())
         {
-            if(-1 == Processor(fdRead.fd_array[n]))
+            if(FD_ISSET(*it, &fdRead))
             {
-                auto it = std::find(clients.begin(), clients.end(), fdRead.fd_array[n]);
-                if(it != clients.end())
+                if(-1 == Processor(*it))
                 {
-                    clients.erase(it);
+                    it = clients.erase(it);
+                    continue;
                 }
             }
-        }
+            ++it;
+        }  
 
         printf("空间时间处理其他业务...\n");
     }
     
+#ifdef _WIN32
     //关闭所有套接字
     for(int n = (int)clients.size() - 1; n >= 0; n--)
     {
         closesocket(clients[n]);
     }
     closesocket(listenSock);
+    WSACleanup();
+#else
+    for(int n = (int)clients.size() - 1; n >= 0; n--)
+    {
+        close(clients[n]);
+    }
+    close(listenSock);
+#endif
 
     std::cout << "Server Exit\n";
-    WSACleanup();
 
     getchar();
 

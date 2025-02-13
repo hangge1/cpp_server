@@ -10,7 +10,7 @@
 #ifdef _WIN32
     #include <WinSock2.h>
     #include <WS2tcpip.h>
-
+    #pragma comment(lib, "ws2_32.lib")
 #else
     #include <unistd.h>
     #include <arpa/inet.h>
@@ -21,7 +21,7 @@
     #define SOCKET_ERROR            (-1)
 #endif
 
-#pragma comment(lib, "ws2_32.lib")
+
 
 enum CMD
 {
@@ -113,6 +113,7 @@ int Processor(SOCKET clientSock)
     if(nRecv <= 0)
     {
         printf("与服务器断开连接!\n");
+        fflush(stdout);
         return -1;
     }
    
@@ -123,6 +124,7 @@ int Processor(SOCKET clientSock)
             LoginResult* login_res = (LoginResult*)header;
             recv(clientSock, (char*)login_res + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
             printf("收到服务器消息: CMD_LOGIN_RES, 数据长度: %d\n", login_res->dataLength);
+            fflush(stdout);
         }
         break;
     case CMD_LOGOUT_RES:
@@ -130,6 +132,7 @@ int Processor(SOCKET clientSock)
             LogoutResult* logout_res = (LogoutResult*)header;
             recv(clientSock, (char*)logout_res + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
             printf("收到服务器消息: CMD_LOGOUT_RES, 数据长度: %d\n", logout_res->dataLength);
+            fflush(stdout);
         }
         break;
     case CMD_NEW_USER_JOIN:
@@ -137,10 +140,12 @@ int Processor(SOCKET clientSock)
             NewUserJoin* newJoin = (NewUserJoin*)header;
             recv(clientSock, (char*)newJoin + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
             printf("收到服务器消息: CMD_NEW_USER_JOIN, 数据长度: %d\n", newJoin->dataLength);
+            fflush(stdout);
         }
         break;
     }
 
+    fflush(stdout);
     return 0;
 }
 
@@ -152,7 +157,8 @@ void CmdFunc(SOCKET clientSock)
 
     while(true)
     {
-        std::cin >> cmdBuf;
+        scanf("%s", cmdBuf);
+
         if(!strncmp(cmdBuf, "exit", 128))
         {
             printf("退出cmd线程!\n");
@@ -200,7 +206,7 @@ int main()
     SOCKET clientSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if(INVALID_SOCKET == clientSock)
     {
-        std::cout << "错误, SOCKET创建失败...\n";
+        printf("错误, SOCKET创建失败...\n");
         return -1;
     }
 
@@ -210,13 +216,14 @@ int main()
 
 #ifdef _WIN32
     servAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    //servAddr.sin_addr.s_addr = inet_addr("192.168.26.129");
 #else
-    servAddr.sin_addr.s_addr = inet_addr("192.168.0.103");
+    servAddr.sin_addr.s_addr = inet_addr("192.168.26.129");
 #endif
 
     if(SOCKET_ERROR == connect(clientSock, (sockaddr*)&servAddr, sizeof(servAddr)))
     {
-        std::cout << "错误, Connect失败...\n";
+        printf("错误, Connect失败...\n");
         return -2;
     }
 
@@ -230,7 +237,7 @@ int main()
         FD_SET(clientSock, &fdReads);
 
         timeval tv {2, 0};
-        int ret = select((int)clientSock, &fdReads, nullptr, nullptr, &tv);
+        int ret = select((int)clientSock + 1, &fdReads, nullptr, nullptr, &tv);
         if(ret < 0)
         {
             printf("select任务结束\n");
@@ -252,10 +259,6 @@ int main()
         //test
         //printf("空间时间处理其他业务...\n");    
     }
-    
-
-    
-    
 
 #ifdef _WIN32
     closesocket(clientSock);
