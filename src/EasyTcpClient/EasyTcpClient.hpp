@@ -134,11 +134,10 @@ public:
         {
             printf("<sock=%d> 与服务器断开连接!\n");
             return -1;
-        }
-        
+        }       
         DataHeader* header = (DataHeader*)buf;
-        OnNetMsg(header);
-        
+        recv(_sock, (char*)buf + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
+        OnNetMsg(header);  
         return 0;
     }
 
@@ -150,21 +149,18 @@ public:
         case CMD_LOGIN_RES:
             {
                 LoginResult* login_res = (LoginResult*)header;
-                recv(_sock, (char*)login_res + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
                 printf("<sock=%d> 收到服务器消息: CMD_LOGIN_RES, 数据长度: %d\n",(int)_sock, login_res->dataLength);
             }
             break;
         case CMD_LOGOUT_RES:
             {
                 LogoutResult* logout_res = (LogoutResult*)header;
-                recv(_sock, (char*)logout_res + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
                 printf("<sock=%d> 收到服务器消息: CMD_LOGOUT_RES, 数据长度: %d\n",(int)_sock,  logout_res->dataLength);
             }
             break;
         case CMD_NEW_USER_JOIN:
             {
                 NewUserJoin* newJoin = (NewUserJoin*)header;
-                recv(_sock, (char*)newJoin + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
                 printf("<sock=%d> 收到服务器消息: CMD_NEW_USER_JOIN, 数据长度: %d\n",(int)_sock,  newJoin->dataLength);
             }
             break;
