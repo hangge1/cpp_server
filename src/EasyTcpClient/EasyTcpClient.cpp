@@ -65,12 +65,12 @@ void CmdFunc()
 
 int main()
 {
-    const int clientCount = FD_SETSIZE - 1;
+    const int clientCount = 1000;//FD_SETSIZE - 1;
     EasyTcpClient* client[clientCount] {};
     for(int i = 0; i < clientCount; i++)
     {
         client[i] = new EasyTcpClient();
-        if(-1 == client[i]->Connect("127.0.0.1", 9090))
+        if(-1 == client[i]->Connect("192.168.26.129", 9090))
         {
             printf("Client Connect failed!\n");
             return -1;

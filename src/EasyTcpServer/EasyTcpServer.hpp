@@ -171,9 +171,9 @@ public:
         closesocket(_listenSock);
         WSACleanup();
 #else
-        for(int n = (int)clients.size() - 1; n >= 0; n--)
+        for(int n = (int)_clients.size() - 1; n >= 0; n--)
         {
-            close(clients[n]);
+            close(_clients[n]->sockfd());
         }
         close(_listenSock);
 #endif

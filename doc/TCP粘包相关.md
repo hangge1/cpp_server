@@ -79,7 +79,7 @@ int ReceiveData(SOCKET clientSock)
 
 **服务器的性能测试如何做?  有哪些常用的性能指标?** 
 
-指标: 吞吐量, 延时
+指标: 吞吐量, 延时, 丢包率
 
 1 服务端纯接收, 客户端纯发送
 
@@ -87,5 +87,8 @@ int ReceiveData(SOCKET clientSock)
 
 
 
-Select在Windows下最大支持64, Linux最大支持1000个
+Select在Windows下最大支持64, Linux最大支持1024个
 
+
+
+服务器和客户端数据收发吞吐量是否稳定, 数值浮动是否一场, 差异是否过大
