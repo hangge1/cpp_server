@@ -88,6 +88,7 @@ public:
         _sock = INVALID_SOCKET;
     }
 
+    int _ncount = 0;
     bool OnRun()
     {
         if(!isRun()) false;
@@ -98,6 +99,7 @@ public:
 
         timeval tv {1, 0};
         int ret = select((int)_sock + 1, &fdReads, nullptr, nullptr, &tv);
+        //printf("select ret = %d count=%d\n", ret, _ncount++);
         if(ret < 0)
         {
             printf("<sock=%d> select任务结束\n",(int)_sock);
@@ -124,20 +126,39 @@ public:
         return _sock != INVALID_SOCKET;
     }
 
+#define RECV_BUFF_SIZE 10240
+    //接收缓冲区
+    char _recvBuf[RECV_BUFF_SIZE] {};
+    //消息缓冲区(第二缓冲区)
+    char _msgBuf[RECV_BUFF_SIZE*10] {};
+    int _lastPos = 0;
+
     //接收数据[处理粘包 拆分包]
     int ReceiveData(SOCKET clientSock)
     {
-        char buf[256] { 0 };
-
-        int nRecv = recv(clientSock, (char*)buf, sizeof(DataHeader), 0);
+        int nRecv = recv(clientSock, (char*)_recvBuf, RECV_BUFF_SIZE, 0);
         if(nRecv <= 0)
         {
-            printf("<sock=%d> 与服务器断开连接!\n");
+            printf("<sock=%d> 与服务器断开连接!\n", (int)clientSock);
             return -1;
-        }       
-        DataHeader* header = (DataHeader*)buf;
-        recv(_sock, (char*)buf + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
-        OnNetMsg(header);  
+        }
+        printf("<Sock=%d> recvLen = %d\n", (int)clientSock, nRecv);
+        
+        memcpy(_msgBuf + _lastPos, _recvBuf, nRecv);
+        _lastPos += nRecv;
+        while (_lastPos > sizeof(DataHeader))
+        {
+            DataHeader* header = (DataHeader*)_msgBuf;
+            int packageSize = header->dataLength;
+            if(_lastPos > packageSize) //够一个包长度
+            {
+                OnNetMsg(header); //处理包
+                memmove(_msgBuf, _msgBuf + packageSize, _lastPos - packageSize); //前移
+                _lastPos -= packageSize;
+            }
+            else break; //不够一个包长度
+        }
+        
         return 0;
     }
 
@@ -162,6 +183,17 @@ public:
             {
                 NewUserJoin* newJoin = (NewUserJoin*)header;
                 printf("<sock=%d> 收到服务器消息: CMD_NEW_USER_JOIN, 数据长度: %d\n",(int)_sock,  newJoin->dataLength);
+            }
+            break;
+        case CMD_ERROR:
+            {
+                ErrorResult* err = (ErrorResult*)header;
+                printf("<sock=%d> 收到服务器消息: CMD_ERROR, 数据长度: %d\n",(int)_sock,  err->dataLength);
+            }
+            break;
+        default:
+            {
+                printf("<sock=%d> 收到服务器未知消息\n", (int)_sock);
             }
             break;
         }

@@ -74,12 +74,16 @@ int main()
     }
 
     //类似UI线程
-    std::thread cmdThread(CmdFunc, &client);
-    cmdThread.detach();
+    //std::thread cmdThread(CmdFunc, &client);
+    //cmdThread.detach();
     
+    Login login;
+    strncpy(login.userName, "zzh", 32);
+    strncpy(login.passWord, "123456", 32);
     while(client.isRun())
     {
         client.OnRun();
+        client.SendData(&login);
     }
 
     getchar();

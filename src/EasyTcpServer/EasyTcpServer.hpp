@@ -154,6 +154,8 @@ public:
 #endif
     }
 
+
+    int _ncount = 0;
     bool OnRun()
     {
         if(!isRun()) false;
@@ -177,8 +179,9 @@ public:
             maxSock = std::max<int>((int)maxSock, (int)clients[n]);
         }
 
-        timeval tv { 2, 0 };
+        timeval tv { 1, 0 };
         int ret = select((int)maxSock + 1, &fdRead, &fdWrite, &fdError, &tv);
+        //printf("select ret = %d count=%d\n", ret, _ncount++);
         if(ret < 0)
         {
             printf("select任务结束!\n");
@@ -207,7 +210,7 @@ public:
             ++it;
         }  
 
-        printf("空间时间处理其他业务...\n");
+        //printf("空间时间处理其他业务...\n");
 
         return true;
     }
@@ -217,10 +220,22 @@ public:
         return _listenSock != INVALID_SOCKET;
     }
 
+
+    char recvBuf[409600] {}; //应用层缓冲区
     //接收数据[处理粘包 拆分包]
     int ReceiveData(SOCKET clientSock)
     {
-        char buf[256]{ 0 };
+        int nRecv = (int)recv(clientSock, (char*)recvBuf, 409600, 0);
+        if(nRecv <= 0)
+        {
+            printf("客户端[%d]断开连接!\n", (int)clientSock);
+            return -1;
+        }
+        printf("<Sock=%d> recvLen = %d\n", (int)clientSock, nRecv);
+        LoginResult res;
+        SendData(clientSock, &res);
+
+        /*char buf[256]{ 0 };
 
         int nRecv = (int)recv(clientSock, (char*)buf, sizeof(DataHeader), 0);  
         if(nRecv <= 0)
@@ -233,7 +248,7 @@ public:
         printf("接收到客户端[%d]发送命令: %d 数据长度: %d\n",(int)clientSock, header->cmd, header->dataLength);
         nRecv = recv(clientSock, (char*)buf + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
 
-        OnNetMsg(clientSock, header);
+        OnNetMsg(clientSock, header);*/
         
         return 0;
     }

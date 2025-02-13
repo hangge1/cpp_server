@@ -39,6 +39,7 @@ struct LoginResult : DataHeader
         result = 0;
     }
     int result;
+    char test[1024] {0};
 };
 
 struct Logout : DataHeader
