@@ -102,7 +102,7 @@ public:
         //printf("select ret = %d count=%d\n", ret, _ncount++);
         if(ret < 0)
         {
-            printf("<sock=%d> select任务结束\n",(int)_sock);
+            //printf("<sock=%d> select任务结束\n",(int)_sock);
             Close();
             return false;
         }

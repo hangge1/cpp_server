@@ -87,3 +87,5 @@ int ReceiveData(SOCKET clientSock)
 
 
 
+Select在Windows下最大支持64, Linux最大支持1000个
+
