@@ -2,12 +2,24 @@
 //
 
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
 
 #include <iostream>
 #include <thread>
 
-#include <WinSock2.h>
-#include <WS2tcpip.h>
+#ifdef _WIN32
+    #include <WinSock2.h>
+    #include <WS2tcpip.h>
+
+#else
+    #include <unistd.h>
+    #include <arpa/inet.h>
+    #include <cstring>
+
+    #define SOCKET int
+    #define INVALID_SOCKET  (SOCKET)(~0)
+    #define SOCKET_ERROR            (-1)
+#endif
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -152,15 +164,15 @@ void CmdFunc(SOCKET clientSock)
         {
             //发
             Login login;
-            strncpy_s(login.userName, "zzh", 32);
-            strncpy_s(login.passWord, "123456", 32);
+            strncpy(login.userName, "zzh", 32);
+            strncpy(login.passWord, "123456", 32);
             send(clientSock, (char*)&login, sizeof(login), 0);
         }
         else if(!strncmp(cmdBuf, "logout", 128))
         {
             //发
             Logout logout;
-            strncpy_s(logout.userName, "zzh", 32);
+            strncpy(logout.userName, "zzh", 32);
             send(clientSock, (char*)&logout, sizeof(logout), 0);
         }
         else
@@ -172,9 +184,11 @@ void CmdFunc(SOCKET clientSock)
 
 int main()
 {
+#ifdef _WIN32
     WORD version = MAKEWORD(2, 2);
     WSADATA data;
     WSAStartup(version, &data);
+#endif
 
     //--简易TCP客户端, 步骤如下: 
     // 1 创建socket
@@ -193,7 +207,12 @@ int main()
     sockaddr_in servAddr{};
     servAddr.sin_family = AF_INET;
     servAddr.sin_port = htons(9090);
-    servAddr.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+
+#ifdef _WIN32
+    servAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+#else
+    servAddr.sin_addr.s_addr = inet_addr("192.168.0.103");
+#endif
 
     if(SOCKET_ERROR == connect(clientSock, (sockaddr*)&servAddr, sizeof(servAddr)))
     {
@@ -234,8 +253,16 @@ int main()
         //printf("空间时间处理其他业务...\n");    
     }
     
+
+    
+    
+
+#ifdef _WIN32
     closesocket(clientSock);
     WSACleanup();
+#else
+    close(clientSock);
+#endif
 
     getchar();
     return 0;
