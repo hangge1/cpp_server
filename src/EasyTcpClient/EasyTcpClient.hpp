@@ -101,6 +101,7 @@ public:
         if(ret < 0)
         {
             printf("<sock=%d> select任务结束\n",(int)_sock);
+            Close();
             return false;
         }
 

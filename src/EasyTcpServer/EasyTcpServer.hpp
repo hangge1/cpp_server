@@ -77,6 +77,7 @@ public:
         if(SOCKET_ERROR == bind(_listenSock, (sockaddr*)&servAddr, sizeof(servAddr)))
         {
             printf("Sock=<%d> 绑定网络端口失败...\n", (int)_listenSock);
+            Close();
             return -1;
         }
         else
@@ -92,6 +93,7 @@ public:
         if(SOCKET_ERROR == listen(_listenSock, backlog))
         {
             printf("Sock=<%d> 监听网络端口失败...\n", (int)_listenSock);
+            Close();
             return -1;
         }
         else
