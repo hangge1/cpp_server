@@ -46,10 +46,6 @@ public:
         {
             printf("[InitSocket], SOCKET创建失败...\n");
         }
-        else
-        {
-            printf("[InitSocket], SOCKET创建成功...\n");
-        }
 
         return _sock;
     }
@@ -71,6 +67,10 @@ public:
             printf("<sock=%d> Connect: %s:%d 失败...\n", (int)_sock, ip, port);
             Close();
             return -1;
+        }
+        else
+        {
+            printf("<sock=%d> Connect: %s:%d 成功...\n", (int)_sock, ip, port);
         }
         return 0;
     }

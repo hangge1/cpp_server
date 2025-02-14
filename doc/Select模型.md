@@ -78,3 +78,23 @@ typedef struct fd_set {
 
 因为接入了Select, 原本阻塞等待用户输入命令的功能, 必须引入多线程
 
+
+
+Select模型在Windows下最大支持64, Linux最大支持1024个
+
+**突破Windows Select的64限制方法:** 
+
+```
+#define FD_SETSIZE 1024
+#include <WinSock2.h>
+
+Window内部是这样的
+#ifndef FD_SETSIZE
+#define FD_SETSIZE      64
+#endif /* FD_SETSIZE */
+```
+
+
+
+**Select的优化:** 
+

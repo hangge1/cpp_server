@@ -7,20 +7,6 @@
 #include <iostream>
 #include <thread>
 
-#ifdef _WIN32
-    #include <WinSock2.h>
-    #include <WS2tcpip.h>
-    #pragma comment(lib, "ws2_32.lib")
-#else
-    #include <unistd.h>
-    #include <arpa/inet.h>
-    #include <cstring>
-
-    #define SOCKET int
-    #define INVALID_SOCKET  (SOCKET)(~0)
-    #define SOCKET_ERROR            (-1)
-#endif
-
 #include "EasyTcpClient.hpp"
 
 
@@ -65,23 +51,24 @@ void CmdFunc()
 
 int main()
 {
-    const int clientCount = 1000;//FD_SETSIZE - 1;
+    //类似UI线程
+    std::thread cmdThread(CmdFunc);
+    cmdThread.detach();
+
+    const int clientCount = 500;
     EasyTcpClient* client[clientCount] {};
     for(int i = 0; i < clientCount; i++)
     {
+        if(!g_bRun)return -1;
+
         client[i] = new EasyTcpClient();
-        if(-1 == client[i]->Connect("192.168.26.129", 9090))
+        if(-1 == client[i]->Connect("127.0.0.1", 9090))
         {
             printf("Client Connect failed!\n");
             return -1;
         }
     }
 
-
-    //类似UI线程
-    std::thread cmdThread(CmdFunc);
-    cmdThread.detach();
-    
     Login login;
     strncpy(login.userName, "zzh", 32);
     strncpy(login.passWord, "123456", 32);
@@ -90,7 +77,7 @@ int main()
         for(int i = 0; i < clientCount; i++)
         {
             client[i]->SendData(&login);
-            client[i]->OnRun();
+            //client[i]->OnRun();
         }
     }
 

@@ -3,9 +3,14 @@
 
 #include <iostream>
 #include <vector>
+#include <list>
 #include "MessageHeader.hpp"
+#include "TimeStamp.hpp"
 
 #ifdef _WIN32
+    #define FD_SETSIZE 1024
+    #define WIN32_LEAN_AND_MEAN
+    #include <windows.h>
     #include <WinSock2.h>
     #include <WS2tcpip.h>
     #pragma comment(lib, "ws2_32.lib")
@@ -141,7 +146,6 @@ public:
         if(INVALID_SOCKET == clientSock)
         {
             printf("Sock=<%d> Accept客户端失败...\n", (int)_listenSock);
-
         }
         else
         {
@@ -152,7 +156,7 @@ public:
 
             _clients.emplace_back(new ClientSocket(clientSock));
  
-            printf("Sock=<%d> 新客户端登录Socket=%d Ip=%s\n",(int)_listenSock, (int)clientSock, inet_ntoa(clientAddr.sin_addr));
+            printf("Sock=<%d> 新客户端<%d>[%d]加入 Ip=%s\n",(int)_listenSock, (int)clientSock, (int)_clients.size(), inet_ntoa(clientAddr.sin_addr));
         }     
 
         return (int)clientSock;
@@ -164,22 +168,33 @@ public:
 
 #ifdef _WIN32
         //关闭所有套接字
-        for(int n = (int)_clients.size() - 1; n >= 0; n--)
+        /*for(int n = (int)_clients.size() - 1; n >= 0; n--)
         {
             closesocket(_clients[n]->sockfd());
+        }*/
+
+        for(auto it = _clients.begin(); it != _clients.end(); ++it)
+        {
+            closesocket((*it)->sockfd());
         }
+
         closesocket(_listenSock);
         WSACleanup();
 #else
-        for(int n = (int)_clients.size() - 1; n >= 0; n--)
+       /* for(int n = (int)_clients.size() - 1; n >= 0; n--)
         {
             close(_clients[n]->sockfd());
+        }*/
+
+        for(auto it = _clients.begin(); it != _clients.end(); ++it)
+        {
+            close((*it)->sockfd());
         }
+
         close(_listenSock);
 #endif
         _listenSock = INVALID_SOCKET;
     }
-
 
     int _ncount = 0;
     bool OnRun()
@@ -199,11 +214,19 @@ public:
         FD_SET(_listenSock, &fdError);
         SOCKET maxSock = _listenSock;
 
-        for(int n = (int)_clients.size() - 1; n >= 0; n--)
+        /*for(int n = (int)_clients.size() - 1; n >= 0; n--)
         {
             FD_SET(_clients[n]->sockfd(), &fdRead);
             maxSock = std::max<int>((int)maxSock, (int)_clients[n]->sockfd());
+        }*/
+
+        for(auto it = _clients.begin(); it != _clients.end(); ++it)
+        {
+            FD_SET((*it)->sockfd(), &fdRead);
+            maxSock = std::max<int>((int)maxSock, (int)(*it)->sockfd());
         }
+
+
 
         timeval tv { 1, 0 };
         int ret = select((int)maxSock + 1, &fdRead, &fdWrite, &fdError, &tv);
@@ -218,7 +241,7 @@ public:
         //检测客户端连接
         if(FD_ISSET(_listenSock, &fdRead))
         {
-            FD_CLR(_listenSock, &fdRead);
+            //FD_CLR(_listenSock, &fdRead);
             Accept();
         }
 
@@ -259,7 +282,7 @@ public:
             printf("客户端[%d]断开连接!\n", (int)pClientSock->sockfd());
             return -1;
         }
-        printf("<Sock=%d> recvLen = %d\n", (int)pClientSock->sockfd(), nRecv);
+        //printf("<Sock=%d> recvLen = %d\n", (int)pClientSock->sockfd(), nRecv);
         
         memcpy(pClientSock->msgBuf() + pClientSock->lastPos(), _recvBuf, nRecv);
         pClientSock->setLastPos(pClientSock->lastPos() + nRecv);
@@ -285,24 +308,33 @@ public:
     //响应消息包
     virtual void OnNetMsg(SOCKET clientSock, DataHeader* header)
     {
+        _recvCount++;
+        double timeinterval = _timeStamp.getElapsedSecond();
+        if(timeinterval >= 1.0)
+        {
+            printf("timeInterval=<%lf>, Sock=<%d>, recvPackCount=<%d>\n",timeinterval, (int)_listenSock, _recvCount);
+            _timeStamp.Update();
+            _recvCount = 0;
+        }
+
         switch( header->cmd )
         {
         case CMD_LOGIN:
             {
                 Login* login = (Login*)header;
-                printf("收到客户端<%d>请求: CMD_LOGIN, 数据长度=%hd, username: %s\n",(int)clientSock, login->dataLength, login->userName);
+                //printf("收到客户端<%d>请求: CMD_LOGIN, 数据长度=%hd, username: %s\n",(int)clientSock, login->dataLength, login->userName);
                 //暂时忽略验证过程
-                LoginResult loginRes;
-                SendData(clientSock, &loginRes);
+                //LoginResult loginRes;
+                //SendData(clientSock, &loginRes);
             }
             break;
         case CMD_LOGOUT:
             {
                 Logout* logout = (Logout*)header;
-                printf("收到客户端<%d>请求: CMD_LOGOUT, 数据长度=%d, username: %s\n",(int)clientSock, logout->dataLength, logout->userName);
+                //printf("收到客户端<%d>请求: CMD_LOGOUT, 数据长度=%d, username: %s\n",(int)clientSock, logout->dataLength, logout->userName);
                 //暂时忽略验证过程
-                LogoutResult logoutRes;
-                SendData(clientSock, &logoutRes);
+                //LogoutResult logoutRes;
+                //SendData(clientSock, &logoutRes);
             }
             break;
         default:
@@ -330,16 +362,19 @@ public:
     {
         if(isRun() && header)
         {
-            for(int n = (int)_clients.size() - 1; n >= 0; n--)
+            for(auto it = _clients.begin(); it != _clients.end(); ++it)
             {
-                SendData(_clients[n]->sockfd(), header);
+                SendData((*it)->sockfd(), header);
             }
         }
     }
 
 private:
     SOCKET _listenSock = INVALID_SOCKET;
-    std::vector<ClientSocket*> _clients;
+    std::list<ClientSocket*> _clients;
+
+    TimeStamp _timeStamp;
+    int _recvCount = 0;
 };
 
 #endif

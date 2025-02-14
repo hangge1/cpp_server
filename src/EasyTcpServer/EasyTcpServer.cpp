@@ -10,22 +10,6 @@
 #include <thread>
 #include "EasyTcpServer.hpp"
 
-#ifdef _WIN32
-    #define WIN32_LEAN_AND_MEAN
-    #include <windows.h>
-    #include <WinSock2.h>
-    #include <WS2tcpip.h>
-    #pragma comment(lib, "ws2_32.lib")
-#else
-    #include <unistd.h>
-    #include <arpa/inet.h>
-    #include <cstring>
-
-    #define SOCKET int
-    #define INVALID_SOCKET  (SOCKET)(~0)
-    #define SOCKET_ERROR            (-1)
-#endif
-
 bool g_bRun = true;
 void CmdFunc(EasyTcpServer* server)
 {
@@ -46,16 +30,23 @@ void CmdFunc(EasyTcpServer* server)
         {
             printf("命令不支持!\n");
         }
-    }  
-    
-    
+    }
 }
 
 int main()
 {
     EasyTcpServer server;
-    server.Bind(nullptr, 9090);
-    server.Listen(5);
+    if(server.Bind(nullptr, 9090) < 0)
+    {
+        printf("Bind Error!\n");
+        return -1;
+    }
+
+    if(server.Listen(5) < 0)
+    {
+        printf("Listen Error!\n");
+        return -2;
+    }
     
     std::thread cmdThread(CmdFunc, &server);
     cmdThread.detach();
