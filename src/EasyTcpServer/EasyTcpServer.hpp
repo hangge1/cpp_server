@@ -167,12 +167,6 @@ public:
         if(_listenSock == INVALID_SOCKET) return;
 
 #ifdef _WIN32
-        //关闭所有套接字
-        /*for(int n = (int)_clients.size() - 1; n >= 0; n--)
-        {
-            closesocket(_clients[n]->sockfd());
-        }*/
-
         for(auto it = _clients.begin(); it != _clients.end(); ++it)
         {
             closesocket((*it)->sockfd());
@@ -181,11 +175,6 @@ public:
         closesocket(_listenSock);
         WSACleanup();
 #else
-       /* for(int n = (int)_clients.size() - 1; n >= 0; n--)
-        {
-            close(_clients[n]->sockfd());
-        }*/
-
         for(auto it = _clients.begin(); it != _clients.end(); ++it)
         {
             close((*it)->sockfd());
@@ -213,12 +202,6 @@ public:
         FD_SET(_listenSock, &fdWrite);
         FD_SET(_listenSock, &fdError);
         SOCKET maxSock = _listenSock;
-
-        /*for(int n = (int)_clients.size() - 1; n >= 0; n--)
-        {
-            FD_SET(_clients[n]->sockfd(), &fdRead);
-            maxSock = std::max<int>((int)maxSock, (int)_clients[n]->sockfd());
-        }*/
 
         for(auto it = _clients.begin(); it != _clients.end(); ++it)
         {
@@ -312,7 +295,7 @@ public:
         double timeinterval = _timeStamp.getElapsedSecond();
         if(timeinterval >= 1.0)
         {
-            printf("timeInterval=<%lf>, Sock=<%d>, recvPackCount=<%d>\n",timeinterval, (int)_listenSock, _recvCount);
+            printf("timeInterval=<%lf>, Sock=<%d>, CSock=<%d>, recvPackCount=<%d>\n",timeinterval, (int)_listenSock,  (int)clientSock, _recvCount);
             _timeStamp.Update();
             _recvCount = 0;
         }
