@@ -48,6 +48,8 @@ int main()
         return -2;
     }
     
+    server.Start();
+
     std::thread cmdThread(CmdFunc, &server);
     cmdThread.detach();
 

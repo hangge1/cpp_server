@@ -13,8 +13,6 @@
 bool g_bRun = true;
 void CmdFunc()
 {
-    //if(!client) return;
-
     char cmdBuf[128] {0};
     while(true)
     {
@@ -27,25 +25,25 @@ void CmdFunc()
             break;
         }
 
-        if(!strncmp(cmdBuf, "login", 128))
-        {
-            //发
-            Login login;
-            strncpy(login.userName, "zzh", 32);
-            strncpy(login.passWord, "123456", 32);
-            //client->SendData(&login);
-        }
-        else if(!strncmp(cmdBuf, "logout", 128))
-        {
-            //发
-            Logout logout;
-            strncpy(logout.userName, "zzh", 32);
-            //client->SendData(&logout);
-        }
-        else
-        {
-            printf("命令不支持!\n");
-        }
+        //if(!strncmp(cmdBuf, "login", 128))
+        //{
+        //    //发
+        //    Login login;
+        //    strncpy(login.userName, "zzh", 32);
+        //    strncpy(login.passWord, "123456", 32);
+        //    //client->SendData(&login);
+        //}
+        //else if(!strncmp(cmdBuf, "logout", 128))
+        //{
+        //    //发
+        //    Logout logout;
+        //    strncpy(logout.userName, "zzh", 32);
+        //    //client->SendData(&logout);
+        //}
+        //else
+        //{
+        //    printf("命令不支持!\n");
+        //}
     }  
 }
 
