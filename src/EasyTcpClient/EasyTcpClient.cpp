@@ -47,7 +47,7 @@ void CmdFunc()
     }  
 }
 
-const char* server_ip = "127.0.0.1";//"192.168.26.129";//
+const char* server_ip = "192.168.26.129";//"127.0.0.1";//
 const unsigned short server_port = 9090;
 const int clientCount = 1000;
 const int threadCount = 4;
