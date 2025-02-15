@@ -79,7 +79,7 @@ public:
     virtual void OnNetLeave(ClientSocket* pClient) = 0;
 
     //客户端消息事件
-    virtual void OnNetMsg(ClientSocket* clientSock, DataHeader* header) = 0;
+    virtual void OnNetMsg(ClientSocket* pClient, DataHeader* header) = 0;
 };
 
 //消息收发服务器
@@ -215,34 +215,7 @@ public:
     //响应消息包
     virtual void OnNetMsg(ClientSocket* pClient, DataHeader* header)
     {
-        _pNetEvent->OnNetMsg(pClient, header);
-
-        switch( header->cmd )
-        {
-        case CMD_LOGIN:
-            {
-                Login* login = (Login*)header;
-                //printf("收到客户端<%d>请求: CMD_LOGIN, 数据长度=%hd, username: %s\n",(int)clientSock, login->dataLength, login->userName);
-                LoginResult loginRes;
-                pClient->SendData(&loginRes);
-            }
-            break;
-        case CMD_LOGOUT:
-            {
-                Logout* logout = (Logout*)header;
-                //printf("收到客户端<%d>请求: CMD_LOGOUT, 数据长度=%d, username: %s\n",(int)clientSock, logout->dataLength, logout->userName);
-                LogoutResult logoutRes;
-                pClient->SendData(&logoutRes);
-            }
-            break;
-        default:
-            {
-                printf("收到客户端<%d>未知的请求! 数据长度=%d\n", (int)pClient->sockfd(), header->dataLength);
-                ErrorResult errorRes;
-                pClient->SendData(&errorRes);
-            }       
-            break;
-        }
+        _pNetEvent->OnNetMsg(pClient, header); 
     }
 
     //发送指定客户端
@@ -306,7 +279,7 @@ class EasyTcpServer : public INetEvent
 {
 public:
     EasyTcpServer()
-        : _recvCount(0), _clientCount(0)
+        : _packageCount(0), _clientCount(0)
     {
         
     }
@@ -417,7 +390,6 @@ public:
         }
         else
         {
-            _clientCount++;
             AddNewClientToCellServer(new ClientSocket(clientSock));
             //printf("Sock=<%d> 新客户端<%d>[%d]加入 Ip=%s\n",(int)_listenSock, (int)clientSock, (int)_allClients.size(), inet_ntoa(clientAddr.sin_addr));
         }     
@@ -501,16 +473,16 @@ public:
         double timeinterval = _timeStamp.getElapsedSecond();
         if(timeinterval >= 1.0)
         {
-            printf("thread<%d>,time=<%lf>,Sock=<%d>,clients<%d>,recvPackCount=<%d>\n",kCellServer_Thread_Count, timeinterval, (int)_listenSock, _clientCount.load(), (int)(_recvCount / timeinterval));
+            printf("thread<%d>,time=<%lf>,Sock=<%d>,clients<%d>,recvPackCount=<%d>\n",kCellServer_Thread_Count, timeinterval, (int)_listenSock, _clientCount.load(), (int)(_packageCount / timeinterval));
             _timeStamp.Update();
-            _recvCount = 0;
+            _packageCount = 0;
         }
     }
 
     //线程安全(只有主线程调用)
     virtual void OnNetJoin(ClientSocket* pClient) override
     {
-        
+        _clientCount++;
     }
 
     //线程不安全(多个子线程调用, 如果只开启一个子线程, 线程安全)
@@ -522,18 +494,18 @@ public:
     //线程不安全(多个子线程调用, 如果只开启一个子线程, 线程安全)
     virtual void OnNetMsg(ClientSocket* clientSock, DataHeader* header) override
     {
-        _recvCount++;
+        _packageCount++;
     }
 
+protected:
+    std::atomic_int _packageCount;
+    //客户端个数
+    std::atomic_int _clientCount;
 private:
     SOCKET _listenSock = INVALID_SOCKET;
     std::vector<CellServer*> _cellServers;  
-
     TimeStamp _timeStamp;
-    std::atomic_int _recvCount;
 
-    //客户端个数
-    std::atomic_int _clientCount;
 };
 
 #endif

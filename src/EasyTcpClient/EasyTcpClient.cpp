@@ -50,7 +50,7 @@ void CmdFunc()
 const char* server_ip = "127.0.0.1";
 //const char* server_ip = "192.168.26.129";
 const unsigned short server_port = 9090;
-const int clientCount = 10000;
+const int clientCount = 1000;
 const int threadCount = 4;
 EasyTcpClient* g_clients[clientCount] {};
 
