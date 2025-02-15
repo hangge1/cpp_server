@@ -48,7 +48,7 @@ int main()
         return -2;
     }
     
-    server.Start();
+    server.Start(4);
 
     std::thread cmdThread(CmdFunc, &server);
     cmdThread.detach();

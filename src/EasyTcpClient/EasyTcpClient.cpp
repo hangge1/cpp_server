@@ -47,7 +47,8 @@ void CmdFunc()
     }  
 }
 
-const char* server_ip = "127.0.0.1";//"192.168.26.129";
+const char* server_ip = "127.0.0.1";
+//const char* server_ip = "192.168.26.129";
 const unsigned short server_port = 9090;
 const int clientCount = 10000;
 const int threadCount = 4;
@@ -55,6 +56,8 @@ EasyTcpClient* g_clients[clientCount] {};
 
 void SendThread(int id)
 {
+    printf("thread<%d>, enter\n", id);
+
     int perClientCount = clientCount / threadCount;
     int begin = (id-1) * perClientCount;
     int end = id * perClientCount;
@@ -85,17 +88,19 @@ void SendThread(int id)
     {
         for(int i = begin; i < end; i++)
         {
-            //g_clients[i]->SendData(&login);
             g_clients[i]->SendData(login, sizeof(login));
-            //client[i]->OnRun();
+            g_clients[i]->OnRun();
         }
     }
 
     for(int i = begin; i < end; i++)
     {
         g_clients[i]->Close();
+        delete g_clients[i];
         g_clients[i] = nullptr;
     }
+
+    printf("thread<%d>, exit\n", id);
 }
 
 int main()
