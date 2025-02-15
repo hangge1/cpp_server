@@ -39,35 +39,41 @@ public:
     //客户端加入事件
     virtual void OnNetJoin(ClientSocket* pClient) override
     {
-        printf("client join, sock=<%d>\n", (int)pClient->sockfd());
+        EasyTcpServer::OnNetJoin(pClient);
+
+        //printf("client join, sock=<%d>\n", (int)pClient->sockfd());
     }
 
     //客户端断开事件
     virtual void OnNetLeave(ClientSocket* pClient) override
     {
+        EasyTcpServer::OnNetLeave(pClient);
+
         printf("client leave, sock=<%d>\n", (int)pClient->sockfd());
     }
 
     //客户端消息事件
     virtual void OnNetMsg(ClientSocket* pClient, DataHeader* header) override
     {
-        printf("recv client cmd %d, sock=<%d>\n", header->cmd ,(int)pClient->sockfd());
+        EasyTcpServer::OnNetMsg(pClient, header);
+
+        //printf("recv client cmd %d, sock=<%d>\n", header->cmd ,(int)pClient->sockfd());
         switch( header->cmd )
         {
         case CMD_LOGIN:
             {
                 Login* login = (Login*)header;
                 //printf("收到客户端<%d>请求: CMD_LOGIN, 数据长度=%hd, username: %s\n",(int)clientSock, login->dataLength, login->userName);
-                LoginResult loginRes;
-                pClient->SendData(&loginRes);
+                //LoginResult loginRes;
+                //pClient->SendData(&loginRes);
             }
             break;
         case CMD_LOGOUT:
             {
                 Logout* logout = (Logout*)header;
                 //printf("收到客户端<%d>请求: CMD_LOGOUT, 数据长度=%d, username: %s\n",(int)clientSock, logout->dataLength, logout->userName);
-                LogoutResult logoutRes;
-                pClient->SendData(&logoutRes);
+                //LogoutResult logoutRes;
+                //pClient->SendData(&logoutRes);
             }
             break;
         default:

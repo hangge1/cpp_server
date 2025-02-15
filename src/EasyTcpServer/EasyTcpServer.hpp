@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <list>
+#include <map>
 #include <thread>
 #include <mutex>
 #include <atomic>
@@ -103,16 +104,28 @@ public:
         _pNetEvent = pNetEvent;
     }
 
+
+    fd_set _fdReadBak; //备份的fd_set信息, 目的是减少每次浪费时间都去重新计算fd_set
+    bool _clientSizeChange;
+    SOCKET _maxSock;
     bool OnRun()
     {
+        _clientSizeChange = true;
+
         while(isRun())
         {
             { //从缓冲队列获取新分配的客户端
                 std::lock_guard<std::mutex> lock(_mutex);
                 if(!_clientsBuff.empty())
                 {
-                    std::copy(_clientsBuff.begin(), _clientsBuff.end(), std::back_inserter(_clients));
+                    for(auto it = _clientsBuff.begin(); it != _clientsBuff.end(); ++it)
+                    {
+                        _clients.insert(std::make_pair((*it)->sockfd(), *it));
+                    }
+
                     _clientsBuff.clear();
+
+                    _clientSizeChange = true;
                 }
             }
 
@@ -125,37 +138,72 @@ public:
             fd_set fdRead;
             FD_ZERO(&fdRead);
 
-            SOCKET maxSock = (*_clients.begin())->sockfd();
-            for(auto it = _clients.begin(); it != _clients.end(); ++it)
+            if(_clientSizeChange)
             {
-                FD_SET((*it)->sockfd(), &fdRead);
-                maxSock = std::max<int>((int)maxSock, (int)(*it)->sockfd());
+                _maxSock = (_clients.begin()->second)->sockfd();
+                for(auto it = _clients.begin(); it != _clients.end(); ++it)
+                {
+                    FD_SET((it->second)->sockfd(), &fdRead);
+                    _maxSock = std::max<int>((int)_maxSock, (int)(it->second)->sockfd());
+                }
+                _clientSizeChange = false;
+                memcpy(&_fdReadBak, &fdRead, sizeof(fd_set));
+            }
+            else
+            {
+                memcpy(&fdRead, &_fdReadBak, sizeof(fd_set));
             }
 
-            //timeval tv { 1, 0 };
-            int ret = select((int)maxSock + 1, &fdRead, nullptr, nullptr, nullptr);
+            
+
+            timeval tv { 0, 0 };
+            int ret = select((int)_maxSock + 1, &fdRead, nullptr, nullptr, &tv);
             if(ret < 0)
             {
                 printf("select任务结束!\n");
                 Close();
                 return false;
             }
+            else if(ret == 0)
+            {
+                continue;
+            }
 
+#ifdef _WIN32
+            for(int i = 0; i < fdRead.fd_count; i++)
+            {
+                auto it = _clients.find(fdRead.fd_array[i]);
+                if(it != _clients.end())
+                {
+                    if(-1 == ReceiveData(it->second)) 
+                    {
+                        _clientSizeChange = true;
+                        if(_pNetEvent) _pNetEvent->OnNetLeave(it->second);
+                        delete it->second;
+                        _clients.erase(it);
+                        continue;
+                    }
+                }
+            }
+#else
             auto it = _clients.begin(); 
             while(it != _clients.end()) 
             {
-                if(FD_ISSET((*it)->sockfd(), &fdRead)) 
+                if(FD_ISSET((it->second)->sockfd(), &fdRead)) 
                 {
-                    if(-1 == ReceiveData(*it)) 
+                    if(-1 == ReceiveData(it->second)) 
                     {
-                        if(_pNetEvent) _pNetEvent->OnNetLeave(*it);
-                        delete *it;
+                        _clientSizeChange = true;
+                        if(_pNetEvent) _pNetEvent->OnNetLeave(it->second);
+                        delete it->second;
                         it = _clients.erase(it);
                         continue;
                     }
                 }
                 ++it;
-            }
+            }     
+#endif
+            
         }
         
         return true;
@@ -171,7 +219,7 @@ public:
 #ifdef _WIN32
         for(auto it = _clients.begin(); it != _clients.end(); ++it)
         {
-            closesocket((*it)->sockfd());
+            closesocket((it->second)->sockfd());
         }
 #else
         for(auto it = _clients.begin(); it != _clients.end(); ++it)
@@ -179,6 +227,7 @@ public:
             close((*it)->sockfd());
         }
 #endif
+        _clients.clear();
     }
 
     //接收缓冲区
@@ -235,7 +284,7 @@ public:
         {
             for(auto it = _clients.begin(); it != _clients.end(); ++it)
             {
-                SendData((*it)->sockfd(), header);
+                SendData((it->second)->sockfd(), header);
             }
         }
     }
@@ -264,7 +313,7 @@ private:
     std::thread _pThread;
 
     //正式通信客户端
-    std::list<ClientSocket*> _clients;
+    std::map<SOCKET, ClientSocket*> _clients;
 
     //客户端缓冲队列
     std::vector<ClientSocket*> _clientsBuff;

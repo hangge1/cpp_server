@@ -98,3 +98,50 @@ Window内部是这样的
 
 **Select的优化:** 
 
+利用Visual Stdio自带的性能分析器, 我们得到性能热点主要集中在: 
+
+**1 select函数(没办法直接优化)**
+
+只能后面使用IOCP进行优化网络模型
+
+**2 每一次循环开始前, 需要将所有客户端的sock加入fd_set(可以优化)** [**FD_SET宏的操作很耗时**]
+
+```c++
+SOCKET maxSock = (*_clients.begin())->sockfd();
+for(auto it = _clients.begin(); it != _clients.end(); ++it)
+{
+    FD_SET((*it)->sockfd(), &fdRead); //性能热点
+    maxSock = std::max<int>((int)maxSock, (int)(*it)->sockfd());
+}
+```
+
+**优化思路:**  只要没有客户端加入和离开, 该fd_set不需要变化! 直接拷贝一份就行!
+
+```
+1 成员添加bool变量, 表示是否客户端数量有变化
+
+2 成员添加fd_set_bak, 表示上次备份的fd_set集合
+
+3 每次onRun的时候, 检测bool变化, 如果有变化就重新计算, 拷贝给fd_set_bak, 设置标志为false; 否则直接用fd_set_bak
+
+4 新客户端连接和有客户端退出的时候设置bool为true, 表示有变化
+```
+
+
+
+**3 针对所有的客户端检测IS_SET的时候(可以优化)**
+
+在linux, macOS是没有办法优化的, 但是Windows可以优化因为windows的fd_set带有fd_count这个成员, 但是我们可以遍历活跃的sock, 如果是已存在的客户端SOCKET, 就可以处理!
+
+需要手段:  快速检测SOCKET是否是客户端, 所以需要引入map
+
+
+
+**4 解决粘包的时候, 移动缓冲区数据特别频繁(可以优化)**
+
+如果每一次解析一个完整的包都要移动缓冲区, 这样效率就特别低,  我们需要尽可能少的移动!
+
+
+
+
+
