@@ -208,6 +208,15 @@ public:
         }
         return SOCKET_ERROR;
     }
+
+    int SendData(DataHeader* header, int nLen)
+    {
+        if(isRun() && header)
+        {
+            return send(_sock, (char*)header, nLen, 0);
+        }
+        return SOCKET_ERROR;
+    }
 private:
     SOCKET _sock = INVALID_SOCKET;
 };

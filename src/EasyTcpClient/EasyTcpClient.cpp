@@ -47,9 +47,9 @@ void CmdFunc()
     }  
 }
 
-const char* server_ip = "192.168.26.129";//"127.0.0.1";//
+const char* server_ip = "127.0.0.1";//"192.168.26.129";
 const unsigned short server_port = 9090;
-const int clientCount = 1000;
+const int clientCount = 10000;
 const int threadCount = 4;
 EasyTcpClient* g_clients[clientCount] {};
 
@@ -71,14 +71,22 @@ void SendThread(int id)
         }
     }
 
-    Login login;
+    Login login[10];
+    for(int i = 0; i < 10; i++)
+    {
+        strncpy(login[i].userName, "zzh", 32);
+        strncpy(login[i].passWord, "123456", 32);
+    }
+
+    /*Login login;
     strncpy(login.userName, "zzh", 32);
-    strncpy(login.passWord, "123456", 32);
+    strncpy(login.passWord, "123456", 32);*/
     while(g_bRun)
     {
         for(int i = begin; i < end; i++)
         {
-            g_clients[i]->SendData(&login);
+            //g_clients[i]->SendData(&login);
+            g_clients[i]->SendData(login, sizeof(login));
             //client[i]->OnRun();
         }
     }
